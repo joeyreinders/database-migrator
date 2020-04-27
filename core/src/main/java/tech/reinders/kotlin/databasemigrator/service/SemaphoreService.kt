@@ -26,5 +26,11 @@ interface SemaphoreService {
      * Release.
      * Can only be released if this host is also the
      */
-    fun release();
+    fun release()
+
+    /**
+     * Release lock, no matter the owner.
+     * Use this at your own risk
+     */
+    fun forceRelease()
 }

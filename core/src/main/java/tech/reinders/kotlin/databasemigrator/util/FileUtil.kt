@@ -14,11 +14,6 @@ object FileUtil {
      */
     private const val TAG = "FileUtil - ";
 
-    /**
-     * Logger
-     */
-    private val logger = LoggerFactory.getLogger(FileUtil::class.java)
-
     fun checkDirectory(aLocation: String) {
         val folder = getResourceDir(aLocation)
 

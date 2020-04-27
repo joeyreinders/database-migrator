@@ -9,14 +9,6 @@ class DatabaseMigratorException : RuntimeException {
      */
     private val tag: String
 
-    /**
-     * Default constructor
-     * @param aTag
-     */
-    constructor(aTag: String) {
-        tag = aTag
-    }
-
     constructor(aTag: String, message: String?) : super(message) {
         tag = aTag
     }

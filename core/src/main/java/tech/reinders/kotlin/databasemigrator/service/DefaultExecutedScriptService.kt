@@ -2,13 +2,14 @@ package tech.reinders.kotlin.databasemigrator.service
 
 import org.slf4j.LoggerFactory
 import tech.reinders.kotlin.databasemigrator.DatabaseMigratorException
+import tech.reinders.kotlin.databasemigrator.DbMigratorConfiguration
 import tech.reinders.kotlin.databasemigrator.util.JdbcUtil
 import java.sql.Connection
 import java.sql.SQLException
 import java.sql.Timestamp
 import java.util.*
 
-internal class DefaultExecutedScriptService(private val aConnection: Connection) : ExecutedScriptService {
+class DefaultExecutedScriptService(private val aConnection: Connection) : ExecutedScriptService {
     override fun hasRun(aScriptName: String): Boolean {
         val stmt = aConnection.prepareStatement(QRY_SELECT)
 
@@ -35,10 +36,6 @@ internal class DefaultExecutedScriptService(private val aConnection: Connection)
             stmt.setTimestamp(3, Timestamp(aEndTime.time))
 
             stmt.execute()
-            aConnection.commit()
-        } catch (t: Throwable) {
-            aConnection.rollback()
-            throw t
         } finally {
             JdbcUtil.close(stmt)
         }

@@ -27,6 +27,8 @@ class DatabaseMigrator(private val aConnection: Connection,
             throw DatabaseMigratorException(TAG, "The provided connection is a readonly connection, cannot do anything with it")
         }
 
+        FileUtil.checkDirectory(aConfiguration.resourceFolder)
+
         this.aConnection.transactionIsolation = Connection.TRANSACTION_SERIALIZABLE
         this.aConnection.autoCommit = false
 
@@ -42,7 +44,7 @@ class DatabaseMigrator(private val aConnection: Connection,
     override fun run() {
         createNecessaryTables()
 
-        val files = FileUtil.getFiles(this.aConfiguration.resourceFolder())
+        val files = FileUtil.getFiles(this.aConfiguration.resourceFolder)
         if(files.isEmpty()) {
             log.info("No files found to handle, return")
 
@@ -55,9 +57,23 @@ class DatabaseMigrator(private val aConnection: Connection,
        }
 
         try {
+            var doneExecutions = false
             for (file in files) {
-
+                if (executedScriptService.hasRun(file.relativeName)) {
+                    log.info("Not running file $file as it has been executed in a previous run")
+                } else {
+                    handleFile(file)
+                    doneExecutions = true
+                }
             }
+
+            if(doneExecutions && ! aConfiguration.transactionPerScript) {
+                this.aConnection.commit()
+            }
+        } catch (ex: Exception) {
+            //Rethrow logging has already been done
+            this.aConnection.rollback()
+            throw ex
         } finally {
             this.semaphoreService.release()
         }
@@ -65,22 +81,28 @@ class DatabaseMigrator(private val aConnection: Connection,
 
     private fun handleFile(aFile: FileWrapper) : Boolean {
         try {
+            log.debug("Handling file $aFile")
             val start = Date()
             ScriptRunner(aFile.file, aConnection, aConfiguration).execute()
             val stop = Date()
 
             this.executedScriptService.insert(aFile.relativeName, start, stop)
 
+            log.info("Handled file $aFile, result OK")
+
+            if(aConfiguration.transactionPerScript) {
+                aConnection.commit()
+            }
             return true
         } catch (ex : DatabaseMigratorException) {
+            log.error("Handled file $aFile, result NOK")
             log.error("Error within script $aFile", ex)
             throw ex
         } catch (ex: Exception) {
+            log.error("Handled file $aFile, result NOK")
             log.error("Error within script $aFile", ex)
             throw DatabaseMigratorException(TAG, ex.message, ex)
         }
-
-        return false
     }
 
     companion object {

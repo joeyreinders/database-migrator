@@ -6,6 +6,7 @@ import tech.reinders.kotlin.databasemigrator.util.JdbcUtil
 import tech.reinders.kotlin.databasemigrator.util.MachineUtil
 import java.sql.Connection
 import java.sql.SQLException
+import java.sql.Timestamp
 
 class DefaultSemaphoreService(private val aConnection: Connection) : SemaphoreService {
     override fun locked(): Boolean {
@@ -39,7 +40,8 @@ class DefaultSemaphoreService(private val aConnection: Connection) : SemaphoreSe
         try {
             stmt.setInt(1, 1)
             stmt.setString(2, MachineUtil.hostName().orEmpty())
-            stmt.setString(3, MachineUtil.pid())
+            stmt.setTimestamp(3, Timestamp(System.currentTimeMillis()))
+            stmt.setString(4, MachineUtil.pid())
 
             stmt.execute()
             aConnection.commit()
@@ -52,8 +54,6 @@ class DefaultSemaphoreService(private val aConnection: Connection) : SemaphoreSe
         } finally {
             JdbcUtil.close(stmt)
         }
-
-        return false
     }
 
     override fun createTable() {
@@ -78,19 +78,53 @@ class DefaultSemaphoreService(private val aConnection: Connection) : SemaphoreSe
                 val host = result.getString("host")
                 val pid = result.getString("pid")
 
-                if(result.next()) {
-                    throw DatabaseMigratorException(TAG, "Multiple locks exist on this database, this is not normal")
+                when {
+                    result.next() -> {
+                        log.error("Multiple locks exist on this database, this is not normal")
+                    }
+                    host != MachineUtil.hostName() -> {
+                        log.error("Hostname '$host' does not correspond with this machine, cannot release lock")
+                    }
+                    pid != MachineUtil.pid() -> {
+                        log.error("PID '$pid' does not correspond with the PID of this application, cannot release lock")
+                    }
+                    else -> {
+                        stmt.execute(QRY_DELETE)
+                        aConnection.commit()
+                    }
                 }
+            } else {
+                log.info("Nothing to unlock")
+            }
+        } catch (ex: SQLException) {
+            aConnection.rollback()
+            log.error("Error while releasing lock for semaphore")
+            throw DatabaseMigratorException(TAG, "Error releasing lock => ${ex.message}", ex)
+        } catch (ex: DatabaseMigratorException) {
+            log.error(ex.message, ex)
+            throw ex
+        } finally {
+            stmt.close()
+        }
+    }
 
-                if(host != MachineUtil.hostName()) {
-                    throw DatabaseMigratorException(TAG, "Hostname does not correspond, cannot release lock")
-                }
+    override fun forceRelease() {
+        val stmt = aConnection.createStatement();
+        try {
+            val result = stmt.executeQuery(QRY_LOCKED)
+            var hasToRelease = false;
 
-                if(pid != MachineUtil.pid()) {
-                    throw DatabaseMigratorException(TAG, "PID does not correspond, cannot release lock")
-                }
+            while(result.next()) {
+                val host = result.getString("host")
+                val pid = result.getString("pid")
 
+                log.info("Release lock of host '$host' with pid '$pid'")
+                hasToRelease = true;
+            }
+
+            if(hasToRelease) {
                 stmt.execute(QRY_DELETE)
+                aConnection.commit()
             } else {
                 log.info("Nothing to unlock")
             }

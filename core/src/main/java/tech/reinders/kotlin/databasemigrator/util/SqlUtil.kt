@@ -32,7 +32,7 @@ object SqlUtil {
                 || (trimmed.startsWith("/*") && trimmed.endsWith("*/"))
     }
 
-    internal fun startLineComment(aLine: String? ) : Boolean {
+    fun startLineComment(aLine: String? ) : Boolean {
         if(aLine.isNullOrEmpty()) {
             logger.trace("'${aLine}' is empty or null")
             return false
@@ -41,7 +41,7 @@ object SqlUtil {
         return aLine.trim().startsWith("/*")
     }
 
-    internal fun endLineComment(aLine: String? ) : Boolean {
+    fun endLineComment(aLine: String? ) : Boolean {
         if(aLine.isNullOrEmpty()) {
             logger.trace("'${aLine}' is empty or null")
             return false

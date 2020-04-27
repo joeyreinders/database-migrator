@@ -20,7 +20,7 @@ class ScriptRunner(private val aFile: File,
 
         val sql = SqlUtil.readScriptFile(aFile)
 
-        if(aConfig.enableSqlLogging()) {
+        if(aConfig.enableSqlLogging) {
             logger.info("Executing script with sql '${sql}', from file ${aFile}")
         }
 

@@ -32,6 +32,7 @@ object JdbcUtil {
     fun tableExists(aTableName: String,
                     aConnection: Connection) : Boolean {
         val metadata = aConnection.metaData
+        //TODO figure out how to use a naming pattern that ignores casing
         val res: ResultSet = metadata.getTables(null, null, "%", arrayOf("TABLE"))
         var result = false;
         try {
@@ -53,11 +54,11 @@ object JdbcUtil {
     /**
      * Closes an autocloseable
      */
-    fun close(aStatement: AutoCloseable) {
+    fun close(aAutoCloseable: AutoCloseable) {
         try {
-            aStatement.close()
+            aAutoCloseable.close()
         } catch (ex: Exception) {
-            log.error("Error while closing $aStatement", ex)
+            log.error("Error while closing $aAutoCloseable", ex)
         }
     }
 
