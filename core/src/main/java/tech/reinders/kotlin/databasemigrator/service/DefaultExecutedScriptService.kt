@@ -20,7 +20,6 @@ class DefaultExecutedScriptService(private val aConnection: Connection) : Execut
             val rs = stmt.resultSet
             return rs != null && rs.next()
         } catch (t: Throwable) {
-            aConnection.rollback()
             throw t
         } finally {
             JdbcUtil.close(stmt)

@@ -12,7 +12,7 @@ object FileUtil {
     /**
      * TAG
      */
-    private const val TAG = "FileUtil - ";
+    private const val TAG = "FileUtil";
 
     fun checkDirectory(aLocation: String) {
         val folder = getResourceDir(aLocation)

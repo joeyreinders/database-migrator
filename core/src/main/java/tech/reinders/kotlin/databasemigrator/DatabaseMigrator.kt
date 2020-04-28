@@ -11,19 +11,20 @@ import tech.reinders.kotlin.databasemigrator.util.FileWrapper
 import java.io.File
 import java.lang.Exception
 import java.sql.Connection
+import java.sql.Savepoint
 import java.util.*
 
 class DatabaseMigrator(private val aConnection: Connection,
                        private val aConfiguration: DbMigratorConfiguration) : Runnable {
-    private val semaphoreService : SemaphoreService
-    private val executedScriptService : ExecutedScriptService
+    private val semaphoreService: SemaphoreService
+    private val executedScriptService: ExecutedScriptService
 
     init {
-        if(this.aConnection.isClosed) {
+        if (this.aConnection.isClosed) {
             throw DatabaseMigratorException(TAG, "The provided connection is already closed")
         }
 
-        if(this.aConnection.isReadOnly) {
+        if (this.aConnection.isReadOnly) {
             throw DatabaseMigratorException(TAG, "The provided connection is a readonly connection, cannot do anything with it")
         }
 
@@ -45,16 +46,22 @@ class DatabaseMigrator(private val aConnection: Connection,
         createNecessaryTables()
 
         val files = FileUtil.getFiles(this.aConfiguration.resourceFolder)
-        if(files.isEmpty()) {
+        if (files.isEmpty()) {
             log.info("No files found to handle, return")
 
             return
         }
 
-       if(! this.semaphoreService.lock()) {
-           log.error("Could not acquire lock, returning")
-           return
-       }
+        if (!this.semaphoreService.lock()) {
+            log.error("Could not acquire lock, returning")
+            return
+        }
+
+        val savepoint = if(! aConfiguration.transactionPerScript) {
+            aConnection.setSavepoint("DatabaseMigrator")
+        } else {
+            null
+        }
 
         try {
             var doneExecutions = false
@@ -67,19 +74,23 @@ class DatabaseMigrator(private val aConnection: Connection,
                 }
             }
 
-            if(doneExecutions && ! aConfiguration.transactionPerScript) {
+            if (doneExecutions && !aConfiguration.transactionPerScript) {
                 this.aConnection.commit()
             }
         } catch (ex: Exception) {
             //Rethrow logging has already been done
-            this.aConnection.rollback()
+            if(savepoint != null) {
+                this.aConnection.rollback(savepoint)
+            } else {
+                this.aConnection.rollback()
+            }
             throw ex
         } finally {
             this.semaphoreService.release()
         }
     }
 
-    private fun handleFile(aFile: FileWrapper) : Boolean {
+    private fun handleFile(aFile: FileWrapper): Boolean {
         try {
             log.debug("Handling file $aFile")
             val start = Date()
@@ -90,11 +101,11 @@ class DatabaseMigrator(private val aConnection: Connection,
 
             log.info("Handled file $aFile, result OK")
 
-            if(aConfiguration.transactionPerScript) {
+            if (aConfiguration.transactionPerScript) {
                 aConnection.commit()
             }
             return true
-        } catch (ex : DatabaseMigratorException) {
+        } catch (ex: DatabaseMigratorException) {
             log.error("Handled file $aFile, result NOK")
             log.error("Error within script $aFile", ex)
             throw ex

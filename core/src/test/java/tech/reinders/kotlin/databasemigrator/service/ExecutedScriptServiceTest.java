@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import tech.reinders.kotlin.databasemigrator.H2Connector;
 import tech.reinders.kotlin.databasemigrator.util.JdbcUtil;
 
+import java.util.Date;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,9 +35,16 @@ public class ExecutedScriptServiceTest {
 
     @Test
     void hasRun() {
-        this.createTable();
-
         this.service.createTable();
         assertFalse(this.service.hasRun("randomscript.sql"));
+    }
+
+    @Test
+    void insert() {
+        this.service.createTable();
+        assertFalse(this.service.hasRun("randomscript.sql"));
+
+        this.service.insert("randomscript.sql", new Date(), new Date());
+        assertTrue(this.service.hasRun("randomscript.sql"));
     }
 }

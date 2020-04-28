@@ -1,0 +1,3 @@
+CREATE TABLE hello (
+    NAME VARCHAR(10)
+);

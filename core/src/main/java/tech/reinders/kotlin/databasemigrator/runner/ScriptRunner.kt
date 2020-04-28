@@ -66,7 +66,7 @@ class ScriptRunner(private val aFile: File,
     }
 
     companion object {
-        private const val TAG = "ScriptRunner -"
+        private const val TAG = "ScriptRunner"
         private val logger = LoggerFactory.getLogger(ScriptRunner::class.java)
     }
 }
